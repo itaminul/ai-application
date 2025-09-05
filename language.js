@@ -10,20 +10,53 @@ const model = new ChatOpenAI({
     baseURL: "https://openrouter.ai/api/v1",
   },
 });
+
+// const messages = [
+//    new SystemMessage("Translate the following from English to Italian."),
+//     new HumanMessage("hi"),
+// ]
+// const mess = await model.invoke(messages)
+// await model.invoke("Hello");
+// await model.invoke([{ role: "user", content: "This is" }])
+// const mess1 = await model.invoke([ new HumanMessage("hi!")])
+//
+const systemTemplate = "Translate the following from English to {language}"
+const promptTemplate = ChatPromptTemplate.fromMessages([
+  ["system", systemTemplate],
+  ["user", "{text}"]
+])
+const promptValue = await promptTemplate.invoke({
+  language: "italian",
+  text: "hi!"
+})
+promptValue.toChatMessages();
+const response = await model.invoke(promptValue);
+console.log(`${response.content}`)
+
+/*
 const askModel = async (input) => {
   const prompt = ChatPromptTemplate.fromMessages([
-    new SystemMessage("You are a helpful assistant."),
+    new SystemMessage("Translate the following from English to Italian."),
     new HumanMessage(input),
   ])
   const parser = new StringOutputParser();
   const chain = prompt.pipe(model).pipe(parser);
-  return await chain.invoke({ input })
+  // return await chain.invoke({ input })
+  await model.invoke("hellow");
+  await model.invoke([{ role: "user", content: "Hello"}])
+  await model.invoke([new HumanMessage("hi!")])
 
+const stream = await model.stream(prompt)
+const chunks = [];
+for await (const chunks of stream){
+  chunks.push(chunks);
+  console.log(`${chunks.content}`)
+}
 }
 // Example usage:
 const main = async () => {
   const response = await askModel("What is the nodejs?");
-  console.log(response); // Expected: "Paris."
+  //console.log(response); // Expected: "Paris."
 };
 
 main();
