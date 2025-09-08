@@ -1,50 +1,50 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { StringOutputParser } from "@langchain/core/output_parsers";
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { ChatPromptTemplate } from '@langchain/core/prompts'
+import { StringOutputParser } from '@langchain/core/output_parsers'
 import "dotenv/config";
-const chatModel = new ChatOpenAI({
+console.log(process.env.OPENROUTER_API_KEY)
+const model = new ChatOpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
-  model: "deepseek/deepseek-r1-0528:free",
+  model: 'deepseek/deepseek-r1-0528:free',
   configuration: {
     baseURL: "https://openrouter.ai/api/v1",
   },
 });
+const askModel = async (input) => {
+  const prompt = ChatPromptTemplate.fromMessages([
+    new SystemMessage("You are a helpful assistant."),
+    new HumanMessage(input),
+  ])
+  const parser = new StringOutputParser();
+  const chain = prompt.pipe(model).pipe(parser);
+  return await chain.invoke({ input })
 
-// Get user input from command line or default
-const userInput = process.argv[2] || "What is LangChain?";
+}
+// Example usage:
+const main = async () => {
+  const response = await askModel("What is the nodejs?");
+  console.log(response); // Expected: "Paris."
+};
 
-// 1. Direct Model Invocation
-// console.log(await chatModel.invoke(userInput));
+main();
 
-// 2. Run the model with the context (Prompt Template + Model)
-// const prompt = ChatPromptTemplate.fromMessages([
-//   ["system", "You are a world class technical documentation writer."], // System Prompt for context
-//   ["user", "{input}"],
-// ]);
+/*
+const { ChatOpenAI } = require("@langchain/openai");
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { PromptTemplate } from '@langchain/core/prompts'
+import { StringOutputParser } from '@langchain/core/output_parsers'
+import "dotenv/config";
+const model = new ChatOpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  model: "deepseek/deepseek-r1-0528:free"
+});
+const  userInput = process.argv[2] || "what is nodejs"
+// const response = await askModel("what is money")
+console.log(userInput)
 
-// const chain = prompt.pipe(chatModel);
 
-// console.log(
-//   await chain.invoke({
-//     input: userInput,
-//   })
-// );
 
-// 3. Run the model with the context and output parser (Prompt Template + Model + Output Parser)
-const prompt = ChatPromptTemplate.fromMessages([
-  ["system", "You are a helpful AI assistant."],
-  ["user", "{input}"],
-]);
-const outputParser = new StringOutputParser(); // Returns just the clean text, no metadata
-const llmChain = prompt.pipe(chatModel).pipe(outputParser);
+*/
 
-console.log(
-  await llmChain.invoke({
-    input: userInput,
-  })
-);
 
-// --- How to run the code ---
-// node basic.js
-// node basic.js "What is artificial intelligence?"
-// node basic.js "Explain machine learning in simple terms"
