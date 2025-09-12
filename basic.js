@@ -6,7 +6,6 @@ import "dotenv/config";
 import { ChatOllama } from '@langchain/ollama'
 
 
-
 const model = new ChatOllama ({
   apiKey: process.env.OPENROUTER_API_KEY,
   model: 'llama3.2:3b',
@@ -16,14 +15,19 @@ const model = new ChatOllama ({
   // },
 });
 
-
-const result2 = await model.invoke([
-  { role: "user", content: "Hi! I am Bob"},
-  { role: "assistant", content: "Hello Bob! How can i assist you today!"},
-  { role: "user", content: "What is my name"}
-])
-
-console.log(result2.content);
+const messages = [
+  new SystemMessage("Translate this following from English into Bengali"),
+  new HumanMessage("hi")
+]
+const result = await model.invoke("Hello");
+await model.invoke([{ role: "user", content: "hello"}])
+const stream = await model.stream(messages)
+const chunks = [];
+for await (const chunk of stream) {
+  chunks.push(chunk);
+  console.log(`${chunk.content}`)
+}
+// console.log(result1.content);
 
 /*
 const { ChatOpenAI } = require("@langchain/openai");
