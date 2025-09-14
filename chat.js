@@ -5,74 +5,73 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama'
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-import { TextLoader } from "langchain/document_loaders/fs/text";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
+import { CSVLoader } from "@langchain/community/document_loaders/fs/csv";
+import { TextLoader } from "langchain/document_loaders/fs/text";
+
+
+import path from "path";
 
 const app = express();
 app.use(bodyParser.json());
 
 //load local text file
-const loader = new PDFLoader('./ai_research.pdf')
-const docs = await loader.load();
+const filePath = './ai_research.pdf'
+const rawDocs = await loadFileByType(filePath);
 
-//console.log(docs[0].pageContent); // This will show readable English text
-const rawDocs = await loader.load();
-//split into chunks
 const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 500, chunkOverlap: 50 });
 const splitDocs = await splitter.splitDocuments(rawDocs);
 
-//console.log(splitDocs);
+
 const embeddings = new OllamaEmbeddings({
   baseUrl: "http://localhost:11434",
   model: "nomic-embed-text"
 })
- const vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, embeddings);
- console.log('PDF embedded and stored.');
-// Create Ollama model (local)
+const vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, embeddings);
+console.log('PDF embedded and stored.');
+
 const model = new ChatOllama({
-  model: "llama3.2:3b"                 
+  model: "llama3.2:3b"
 });
 
-const query = "tell me about Prof. Neha Saini";
-const results = await vectorStore.similaritySearch(query, 3);
-
-// console.log("Top Matches:");
-results.forEach((doc, idx) => {
-  console.log(`\n[${idx + 1}]:\n${doc.pageContent}`);
-});
-
-// Create a ChatPromptTemplate
-// (variables: tone + user_input)
-const prompt = ChatPromptTemplate.fromMessages([
-  ["system", "You are a helpful assistant that replies in a {tone} tone."],
-  ["user", "{user_input}"]
-]);
-
-// StringOutputParser to get plain text back
-const parser = new StringOutputParser();
-
-// Endpoint
 app.post('/chat', async (req, res) => {
   const { message, tone = "friendly" } = req.body;
 
   try {
-    // Fill the template with values
+
+    const docs = await vectorStore.similaritySearch(message, 3);
+    const contextText = docs.map(doc => doc.pageContent).join("\n\n");
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", "You are a helpful assistant. Use the following context to answer the question:\n\n{context}\n\nRespond in a {tone} tone."],
+      ["user", "{user_input}"]
+    ]);
+
     const formattedPrompt = await prompt.formatMessages({
       tone,
       user_input: message,
       stream: true,
+      context: contextText,
       option: {
         temperature: 0.7
       }
     });
+    // Set headers for streaming
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.flushHeaders?.(); // For compatibility with some proxies
 
-    // Send to Ollama model
-    const rawResponse = await model.invoke(formattedPrompt);
+    const stream = await model.stream(formattedPrompt);
 
-    // Parse to string
-    const reply = await parser.invoke(rawResponse);
+    for await (const chunk of stream) {
+      const text = chunk?.content || '';
+     // console.log(text)
+      res.write(text);
+      res.flush?.(); // <--- force flush if supported
+    }
 
-    res.json({ reply });
+    res.end();
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -82,3 +81,30 @@ app.post('/chat', async (req, res) => {
 app.listen(3000, () => {
   console.log("Chatbot server running at http://localhost:3000");
 });
+
+
+async function loadFileByType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+
+  let loader;
+
+  switch (ext) {
+    case '.pdf':
+      loader = new PDFLoader(filePath);
+      break;
+    case '.docx':
+      loader = new DocxLoader(filePath);
+      break;
+    case '.csv':
+      loader = new CSVLoader(filePath);
+      break;
+    case '.txt':
+      loader = new TextLoader(filePath);
+      break;
+    default:
+      throw new Error(`Unsupported file type: ${ext}`);
+  }
+
+  const docs = await loader.load();
+  return docs;
+}
