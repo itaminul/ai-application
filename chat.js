@@ -32,6 +32,7 @@ const model = new ChatOllama({
   model: "llama3.2:3b"
 });
 
+
 app.post('/chat', async (req, res) => {
   const { message, tone = "friendly" } = req.body;
 
@@ -58,8 +59,7 @@ app.post('/chat', async (req, res) => {
     ]);
 
     const formattedPrompt = await prompt.formatMessages({
-      tone,
-      icon: "🤖",
+      tone:'friendly',
       user_input: message,
       stream: true,
       context: contextText,
