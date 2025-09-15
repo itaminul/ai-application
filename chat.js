@@ -1,7 +1,6 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatOllama, OllamaEmbeddings } from '@langchain/ollama'
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
@@ -9,8 +8,6 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
 import { CSVLoader } from "@langchain/community/document_loaders/fs/csv";
 import { TextLoader } from "langchain/document_loaders/fs/text";
-
-
 import path from "path";
 
 const app = express();
@@ -29,7 +26,7 @@ const embeddings = new OllamaEmbeddings({
   model: "nomic-embed-text"
 })
 const vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, embeddings);
-console.log('PDF embedded and stored.');
+//console.log('PDF embedded and stored.');
 
 const model = new ChatOllama({
   model: "llama3.2:3b"
@@ -43,7 +40,17 @@ app.post('/chat', async (req, res) => {
     const docs = await vectorStore.similaritySearch(message, 3);
     const contextText = docs.map(doc => doc.pageContent).join("\n\n");
     const prompt = ChatPromptTemplate.fromMessages([
-      ["system", "You are a helpful assistant. Use the following context to answer the question:\n\n{context}\n\nRespond in a {tone} tone."],
+      ["system", `You are a knowledgeable assistant. 
+        Use the following CONTEXT strictly to answer the user's question. 
+        CONTEXT: {context}
+        Tone: {tone}
+        Additional Rules:
+        - Do not include information outside the context.
+        - If the answer cannot be found in the context, say "I don't know based on the provided context."
+        - Be concise and clear.
+        - Format lists as bullet points if needed. 
+        - Don't comment  
+          `],
       ["user", "{user_input}"]
     ]);
 
@@ -56,19 +63,18 @@ app.post('/chat', async (req, res) => {
         temperature: 0.7
       }
     });
-    // Set headers for streaming
+
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader('Cache-Control', 'no-cache');
-    res.flushHeaders?.(); // For compatibility with some proxies
+    res.flushHeaders?.();
 
     const stream = await model.stream(formattedPrompt);
 
     for await (const chunk of stream) {
       const text = chunk?.content || '';
-     // console.log(text)
       res.write(text);
-      res.flush?.(); // <--- force flush if supported
+      res.flush?.();
     }
 
     res.end();
