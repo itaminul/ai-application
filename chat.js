@@ -32,6 +32,7 @@ const model = new ChatOllama({
   model: "llama3.2:3b"
 });
 
+
 app.post('/chat', async (req, res) => {
   const { message, tone = "friendly" } = req.body;
 
@@ -49,13 +50,16 @@ app.post('/chat', async (req, res) => {
         - If the answer cannot be found in the context, say "I don't know based on the provided context."
         - Be concise and clear.
         - Format lists as bullet points if needed. 
-        - Don't comment  
+        - Don't comment,
+        - Keep answers concise and easy to understand.
+        - If the user asks for steps or breakdowns, present them in bullet points.
+        - Do not add personal opinions or extra commentary.  
           `],
-      ["user", "{user_input}"]
+      ["user", "Great question 🙂 — let's break down what {user_input} means."]
     ]);
 
     const formattedPrompt = await prompt.formatMessages({
-      tone,
+      tone:'friendly',
       user_input: message,
       stream: true,
       context: contextText,
