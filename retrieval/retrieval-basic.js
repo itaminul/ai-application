@@ -1,7 +1,7 @@
 import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { createStuffDocumentsChain } from "langchain/chains/combine_documents"
-import { CheerioWebBaseLoader } from "@langchain/community/document_loaders"
+import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio"
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter"
 import { MemoryVectorStore } from "langchain/vectorstores/memory"
 const ollama = new ChatOllama({
@@ -19,7 +19,7 @@ const prompt = ChatPromptTemplate.fromTemplate(
 )
 
 const chain = await createStuffDocumentsChain({
-    llm: module,
+    llm: ollama,
     prompt
 })
 const loader = new CheerioWebBaseLoader("https://google.github.io/adk-docs/");
@@ -36,4 +36,11 @@ const vectorStore = await MemoryVectorStore.fromDocuments(
     embeddings
 )
 
-console.log(splitDocs);
+const retriever = vectorStore.asRetriever({ k: 2})
+const query = "What is ADK?"
+const retrievedDocs = await retriever.invoke(query)
+const response = await chain.invoke({
+    input: query,
+    context: retrievedDocs
+})
+console.log(response);
