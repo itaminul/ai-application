@@ -22,25 +22,43 @@ const chain = await createStuffDocumentsChain({
     llm: ollama,
     prompt
 })
-const loader = new CheerioWebBaseLoader("https://google.github.io/adk-docs/");
-const docs = await loader.load();
+
+const urls = [
+    "https://aws.amazon.com/blogs/aws/introducing-amazon-elastic-vmware-service-for-running-vmware-cloud-foundation-on-aws/?nc2=h_dsc_ex_s4",
+    "https://mzamin.com/news.php?news=182134"
+]
+
+const docsArrays = await Promise.all(
+    urls.map(url => {
+        const loader = new CheerioWebBaseLoader(url);
+        return loader.load();
+    })
+)
+const docs = docsArrays.flat();
 const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 150
 })
 
 const splitDocs = await splitter.splitDocuments(docs)
-const embeddings = new OllamaEmbeddings({ model: "nomic-embed-text"})
+const embeddings = new OllamaEmbeddings({ model: "nomic-embed-text" })
 const vectorStore = await MemoryVectorStore.fromDocuments(
     splitDocs,
     embeddings
 )
 
-const retriever = vectorStore.asRetriever({ k: 2})
-const query = "What is ADK?"
-const retrievedDocs = await retriever.invoke(query)
-const response = await chain.invoke({
-    input: query,
-    context: retrievedDocs
-})
-console.log(response);
+const retriever = vectorStore.asRetriever({ k: 2 })
+const queries = [
+    "Introducing Amazon Elastic VMware Service",
+    "About Thalapathy Vijay rally in India"
+]
+for (const query of queries) {
+    const retrievedDocs = await retriever.invoke(query)
+        const response = await chain.invoke({
+            input: query,
+            context: retrievedDocs
+        })
+        console.log(response);
+
+}
+
