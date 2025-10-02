@@ -12,10 +12,16 @@ const ollama = new ChatOllama({
     maxRetries: 2
 });
 
-const prompt = ChatPromptTemplate.fromTemplate(
-    `Answer the user's questoin from the following context.
-    Context: {context}
-    Question: {input}`
+const prompt = ChatPromptTemplate.fromMessages([
+    [
+        "system",
+        "Yur are a helpful assistant. Use the following cotext to answer the user's question"
+    ],
+    [
+        "human",
+        "Context:\n{context}\n\nQuestion: {input}"
+    ]
+]
 )
 
 const chain = await createStuffDocumentsChain({
@@ -54,11 +60,11 @@ const queries = [
 ]
 for (const query of queries) {
     const retrievedDocs = await retriever.invoke(query)
-        const response = await chain.invoke({
-            input: query,
-            context: retrievedDocs
-        })
-        console.log(response);
+    const response = await chain.invoke({
+        input: query,
+        context: retrievedDocs
+    })
+    console.log(response);
 
 }
 
